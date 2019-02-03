@@ -2,11 +2,9 @@ package main
 
 import (
 	"bufio"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/TylerBrock/colorjson"
 	"github.com/dgrijalva/jwt-go"
@@ -26,16 +24,18 @@ func getToken() string {
 	return ""
 }
 
-func prettyPrint(data interface{}) {
-	// prettyPrint, err := json.MarshalIndent(data, "", "  ")
-	// if err != nil {
-	// 	fmt.Println("failed to pretty print")
-	// 	return
-	// }
-	// fmt.Println(string(prettyPrint))
+func prettyPrintNoColor(data interface{}) {
+	prettyPrint, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		fmt.Println("failed to pretty print")
+		return
+	}
+	fmt.Println(string(prettyPrint))
+}
+
+func prettyPrintWithColor(data interface{}) {
 	f := colorjson.NewFormatter()
 	f.Indent = 2
-
 	s, _ := f.Marshal(data)
 	fmt.Println(string(s))
 }
@@ -45,23 +45,6 @@ func convertClaims(claims jwt.Claims) map[string]interface{} {
 	b, _ := json.Marshal(claims)
 	json.Unmarshal(b, &t)
 	return t
-}
-
-func oldStyle(token string) {
-	splitToken := strings.Split(token, ".")
-	if len(splitToken) != 3 {
-		fmt.Println("invalid jwt")
-		return
-	}
-	c, err := base64.StdEncoding.DecodeString(splitToken[1])
-	claims := map[string]interface{}{}
-	json.Unmarshal(c, &claims)
-	if err != nil {
-		fmt.Println("decode error:", err)
-		return
-	}
-	prettyPrint, _ := json.MarshalIndent(claims, "", "  ")
-	fmt.Println(string(prettyPrint))
 }
 
 func main() {
@@ -75,8 +58,8 @@ func main() {
 		fmt.Println("failed to parse token")
 		return
 	}
-	prettyPrint(token.Header)
+	prettyPrintWithColor(token.Header)
 	fmt.Println()
-	prettyPrint(convertClaims(claims))
+	prettyPrintWithColor(convertClaims(claims))
 
 }
