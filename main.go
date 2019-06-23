@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/TylerBrock/colorjson"
 	"github.com/dgrijalva/jwt-go"
@@ -20,6 +21,26 @@ type accesskeys struct {
 		Kid string `json:"kid"`
 		Pem string `json:"cert"`
 	} `json:"public_cert"`
+}
+
+type jwtTime struct {
+	Iat string `json:"iat"`
+	Exp string `json:"exp"`
+}
+
+func handleTime(claims map[string]interface{}) {
+	out := map[string]interface{}{}
+
+	iat := claims["iat"].(float64)
+	iatTime := time.Unix(int64(iat), 0)
+	out["iat"] = fmt.Sprintf("%d -- %s", int64(iat), iatTime.Format(time.RFC3339))
+
+	exp := claims["exp"].(float64)
+	expTime := time.Unix(int64(exp), 0)
+	out["exp"] = fmt.Sprintf("%d -- %s", int64(exp), expTime.Format(time.RFC3339))
+
+	fmt.Println()
+	prettyPrintWithColor(out)
 }
 
 func getToken() string {
@@ -90,8 +111,9 @@ func convertClaims(claims jwt.Claims) map[string]interface{} {
 
 func main() {
 	var verify bool
-	flag.BoolVar(&verify, "verify", false, "verify the JWT")
-	flag.BoolVar(&verify, "v", false, "verify the JWT (shorthand)")
+	var time bool
+	flag.BoolVar(&verify, "v", false, "verify the JWT")
+	flag.BoolVar(&time, "t", false, "humanize the timestamps")
 	flag.Parse()
 
 	parser := jwt.Parser{}
@@ -117,8 +139,13 @@ func main() {
 		}
 	}
 
+	c := convertClaims(claims)
+
 	prettyPrintWithColor(token.Header)
 	fmt.Println()
-	prettyPrintWithColor(convertClaims(claims))
+	prettyPrintWithColor(c)
+	if time {
+		handleTime(c)
+	}
 
 }
