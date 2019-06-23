@@ -2,7 +2,12 @@
 
 Command line utility for parsing JWTs and getting claims
 
-Can verify a token by adding `-verify` or `-v`.
+```
+$ cfjwt --help
+Usage of cfjwt:
+  -t    humanize the timestamps
+  -v    verify the JWT
+```
 
 ```
 $ echo 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjY1OTNkOWFjZjkyY ...' | cfjwt

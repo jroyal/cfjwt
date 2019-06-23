@@ -12,6 +12,7 @@ import (
 
 	"github.com/TylerBrock/colorjson"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 )
 
@@ -33,11 +34,11 @@ func handleTime(claims map[string]interface{}) {
 
 	iat := claims["iat"].(float64)
 	iatTime := time.Unix(int64(iat), 0)
-	out["iat"] = fmt.Sprintf("%d -- %s", int64(iat), iatTime.Format(time.RFC3339))
+	out["iat"] = fmt.Sprintf("%s -- %s", iatTime.Format(time.RFC3339), humanize.Time(iatTime))
 
 	exp := claims["exp"].(float64)
 	expTime := time.Unix(int64(exp), 0)
-	out["exp"] = fmt.Sprintf("%d -- %s", int64(exp), expTime.Format(time.RFC3339))
+	out["exp"] = fmt.Sprintf("%s -- %s", expTime.Format(time.RFC3339), humanize.Time(expTime))
 
 	fmt.Println()
 	prettyPrintWithColor(out)
