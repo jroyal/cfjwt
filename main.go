@@ -3,12 +3,24 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 
 	"github.com/TylerBrock/colorjson"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/fatih/color"
 )
+
+type accesskeys struct {
+	Keys       []interface{} `json:"keys"`
+	PublicCert struct {
+		Kid string `json:"kid"`
+		Pem string `json:"cert"`
+	} `json:"public_cert"`
+}
 
 func getToken() string {
 	stat, _ := os.Stdin.Stat()
@@ -22,6 +34,35 @@ func getToken() string {
 		// stdin is from a terminal
 	}
 	return ""
+}
+
+func getKey(token *jwt.Token) (interface{}, error) {
+	claims := convertClaims(token.Claims)
+	authDomain := claims["iss"].(string)
+	res, err := http.Get(authDomain + "/cdn-cgi/access/certs")
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, err
+	}
+
+	buf, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	accessKeys := accesskeys{}
+	json.Unmarshal(buf, &accessKeys)
+
+	pubKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(accessKeys.PublicCert.Pem))
+	if err != nil {
+		return nil, err
+	}
+
+	return pubKey, nil
 }
 
 func prettyPrintNoColor(data interface{}) {
@@ -48,16 +89,34 @@ func convertClaims(claims jwt.Claims) map[string]interface{} {
 }
 
 func main() {
-
-	tokenString := getToken()
-	claims := jwt.MapClaims{}
+	var verify bool
+	flag.BoolVar(&verify, "verify", false, "verify the JWT")
+	flag.BoolVar(&verify, "v", false, "verify the JWT (shorthand)")
+	flag.Parse()
 
 	parser := jwt.Parser{}
-	token, _, err := parser.ParseUnverified(tokenString, &claims)
-	if err != nil {
-		fmt.Println("failed to parse token")
-		return
+	claims := jwt.MapClaims{}
+	var token *jwt.Token
+	var err error
+
+	tokenString := getToken()
+
+	if verify {
+		token, err = parser.ParseWithClaims(tokenString, &claims, getKey)
+		if token.Valid {
+			color.Green("Valid token")
+		} else {
+			color.Red("Invalid token")
+		}
+	} else {
+
+		token, _, err = parser.ParseUnverified(tokenString, &claims)
+		if err != nil {
+			fmt.Println("failed to parse token")
+			return
+		}
 	}
+
 	prettyPrintWithColor(token.Header)
 	fmt.Println()
 	prettyPrintWithColor(convertClaims(claims))
