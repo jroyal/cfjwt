@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -16,12 +17,15 @@ import (
 	"github.com/fatih/color"
 )
 
+type publicCert struct {
+	Kid string `json:"kid"`
+	Pem string `json:"cert"`
+}
+
 type accesskeys struct {
-	Keys       []interface{} `json:"keys"`
-	PublicCert struct {
-		Kid string `json:"kid"`
-		Pem string `json:"cert"`
-	} `json:"public_cert"`
+	Keys        []interface{} `json:"keys"`
+	PublicCert  publicCert    `json:"public_cert"`
+	PublicCerts []publicCert  `json:"public_certs"`
 }
 
 type jwtTime struct {
@@ -76,15 +80,23 @@ func getKey(token *jwt.Token) (interface{}, error) {
 	}
 	defer res.Body.Close()
 
+	kid := token.Header["kid"]
+
 	accessKeys := accesskeys{}
 	json.Unmarshal(buf, &accessKeys)
 
-	pubKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(accessKeys.PublicCert.Pem))
-	if err != nil {
-		return nil, err
-	}
+	for _, key := range accessKeys.PublicCerts {
+		if key.Kid == kid {
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(key.Pem))
+			if err != nil {
+				return nil, err
+			}
 
-	return pubKey, nil
+			return pubKey, nil
+		}
+	}
+	return nil, errors.New("couldn't find key")
+
 }
 
 func prettyPrintNoColor(data interface{}) {
